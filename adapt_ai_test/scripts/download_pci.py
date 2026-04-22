@@ -1,116 +1,220 @@
 """
-Script de téléchargement des données PCI (Parcellaire Express) pour le département 02 (Aisne).
+Script d'import des parcelles cadastrales via le WFS IGN Géoplateforme.
 
-Source : Géoplateforme IGN – données libres (Licence Ouverte Etalab 2.0)
-URL : https://data.geopf.fr/telechargement/
+Le téléchargement bulk (archive .7z) de la Géoplateforme IGN n'est plus
+accessible sans authentification. Ce script utilise le service WFS public
+qui ne requiert aucune clé d'API.
+
+Source : https://data.geopf.fr/wfs/ows
+Couche  : CADASTRALPARCELS.PARCELLAIRE_EXPRESS:parcelle
+Licence : Licence Ouverte Etalab 2.0
 
 Usage :
+    # Import complet du département 02 (env. 999 000 parcelles, ~45 min)
     python scripts/download_pci.py
-    python scripts/download_pci.py --dept 02 --output data/
+
+    # Import limité pour test rapide
+    python scripts/download_pci.py --dept 02 --limit 5000
+
+    # Import d'une commune spécifique (code INSEE)
+    python scripts/download_pci.py --commune 02408
 """
 
 import argparse
 import os
 import sys
-import urllib.request
-import urllib.error
+import time
+import django
 from pathlib import Path
 
-# URL de téléchargement PCI sur la géoplateforme IGN
-# Format : PARCELLAIRE-EXPRESS_2-1__SHP_LAMB93_D{dept}_2024-01-01
-PCI_URL_TEMPLATE = (
-    "https://data.geopf.fr/telechargement/download/PARCELLAIRE-EXPRESS/"
-    "PARCELLAIRE-EXPRESS_2-1__SHP_LAMB93_D{dept}_2024-01-01/"
-    "PARCELLAIRE-EXPRESS_2-1__SHP_LAMB93_D{dept}_2024-01-01.7z"
-)
+# Configure Django
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "adapt_ai_test.settings")
+django.setup()
 
-def download_with_progress(url: str, dest: Path):
-    """Télécharge un fichier avec affichage de la progression."""
-    print(f"Téléchargement depuis :\n  {url}")
-    print(f"Destination : {dest}")
+import requests
+from django.contrib.gis.geos import GEOSGeometry, MultiPolygon, Polygon
+from django.db import transaction
+from cadastre.models import Parcelle
 
-    def progress(block_num, block_size, total_size):
-        if total_size > 0:
-            downloaded = block_num * block_size
-            pct = min(downloaded / total_size * 100, 100)
-            bar = "█" * int(pct // 2) + "░" * (50 - int(pct // 2))
-            mb = downloaded / 1_000_000
-            total_mb = total_size / 1_000_000
-            print(f"\r  [{bar}] {pct:.1f}% ({mb:.1f}/{total_mb:.1f} Mo)", end="", flush=True)
+WFS_URL = "https://data.geopf.fr/wfs/ows"
+TYPENAME = "CADASTRALPARCELS.PARCELLAIRE_EXPRESS:parcelle"
+PAGE_SIZE = 1000  # max fiable par requête WFS
+MAX_RETRIES = 3
+BATCH_SIZE = 500  # insertions par transaction
+
+
+def _build_url(**kwargs) -> str:
+    """
+    Construit l'URL WFS sans encoder les caractères spéciaux du CQL_FILTER.
+    Le serveur IGN rejette les apostrophes encodées (%27) dans les filtres CQL.
+    """
+    parts = "&".join(f"{k}={v}" for k, v in kwargs.items())
+    return f"{WFS_URL}?{parts}"
+
+
+def wfs_page(dept: str = None, commune: str = None, start: int = 0, count: int = PAGE_SIZE) -> dict:
+    """Récupère une page de features WFS."""
+    if commune:
+        cql = f"code_insee='{commune}'"
+    elif dept:
+        cql = f"code_dep='{dept}'"
+    else:
+        raise ValueError("Fournissez --dept ou --commune")
+
+    url = _build_url(
+        SERVICE="WFS", VERSION="2.0.0", REQUEST="GetFeature",
+        TYPENAMES=TYPENAME, OUTPUTFORMAT="application/json",
+        COUNT=count, STARTINDEX=start, CQL_FILTER=cql,
+    )
+
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            resp = requests.get(url, timeout=60)
+            resp.raise_for_status()
+            return resp.json()
+        except (requests.RequestException, ValueError) as e:
+            if attempt == MAX_RETRIES:
+                raise
+            wait = attempt * 5
+            print(f"\n  Tentative {attempt}/{MAX_RETRIES} échouée ({e}), retry dans {wait}s...")
+            time.sleep(wait)
+
+
+def count_features(dept: str = None, commune: str = None) -> int:
+    """Compte le nombre total de features disponibles."""
+    if commune:
+        cql = f"code_insee='{commune}'"
+    else:
+        cql = f"code_dep='{dept}'"
+
+    url = _build_url(
+        SERVICE="WFS", VERSION="2.0.0", REQUEST="GetFeature",
+        TYPENAMES=TYPENAME, RESULTTYPE="hits", CQL_FILTER=cql,
+    )
+    resp = requests.get(url, timeout=30)
+    resp.raise_for_status()
+
+    # Cherche numberMatched ou numberOfFeatures dans le XML de réponse
+    import re
+    for attr in ("numberMatched", "numberOfFeatures"):
+        m = re.search(rf'{attr}="(\d+)"', resp.text)
+        if m:
+            return int(m.group(1))
+    return 0
+
+
+def feature_to_parcelle(f: dict) -> Parcelle | None:
+    """Convertit un GeoJSON feature en instance Parcelle."""
+    p = f.get("properties", {})
+    geom_data = f.get("geometry")
+    if not geom_data or not p.get("idu"):
+        return None
 
     try:
-        urllib.request.urlretrieve(url, dest, reporthook=progress)
-        print()  # nouvelle ligne après la barre
-        print(f"Téléchargement terminé : {dest} ({dest.stat().st_size / 1_000_000:.1f} Mo)")
-    except urllib.error.HTTPError as e:
-        print(f"\nErreur HTTP {e.code} : {e.reason}")
-        print("Vérifiez l'URL ou téléchargez manuellement depuis :")
-        print("  https://geoservices.ign.fr/parcellaire-express-pci")
-        sys.exit(1)
-    except urllib.error.URLError as e:
-        print(f"\nErreur réseau : {e.reason}")
-        sys.exit(1)
+        import json
+        geom = GEOSGeometry(json.dumps(geom_data), srid=4326)
+        if isinstance(geom, Polygon):
+            geom = MultiPolygon(geom)
+        elif not isinstance(geom, MultiPolygon):
+            return None
+    except Exception:
+        return None
 
-
-def extract_7z(archive: Path, output_dir: Path):
-    """Extrait une archive .7z avec p7zip."""
-    import subprocess
-    print(f"\nExtraction de {archive.name} vers {output_dir}...")
-    result = subprocess.run(
-        ["7z", "x", str(archive), f"-o{output_dir}", "-y"],
-        capture_output=True, text=True
+    return Parcelle(
+        idu=p["idu"],
+        code_dep=p.get("code_dep", ""),
+        code_com=p.get("code_com", ""),
+        nom_com=p.get("nom_com", ""),
+        section=p.get("section", ""),
+        numero=p.get("numero", ""),
+        feuille=int(p.get("feuille") or 0),
+        contenance=float(p["contenance"]) if p.get("contenance") is not None else None,
+        geom=geom,
     )
-    if result.returncode != 0:
-        print("Erreur lors de l'extraction :")
-        print(result.stderr)
-        sys.exit(1)
-    print("Extraction terminée.")
 
 
-def find_shapefiles(directory: Path, name_filter: str = "PARCELLE") -> list[Path]:
-    """Trouve les fichiers shapefile (.shp) correspondant au filtre."""
-    return list(directory.rglob(f"*{name_filter}*.shp"))
+def import_wfs(dept: str = None, commune: str = None, truncate: bool = False, limit: int = None):
+    print("=== Import WFS – Parcellaire Express IGN ===")
+    print(f"Filtre : {'département ' + dept if dept else 'commune ' + commune}")
+
+    total = count_features(dept=dept, commune=commune)
+    if limit:
+        total = min(total, limit)
+    print(f"Parcelles à importer : {total:,}")
+
+    if truncate:
+        existing = Parcelle.objects.count()
+        print(f"Suppression de {existing:,} parcelles existantes...")
+        Parcelle.objects.all().delete()
+
+    imported = 0
+    skipped = 0
+    start = 0
+
+    while start < total:
+        count = min(PAGE_SIZE, total - start)
+        print(f"\r  [{imported:,}/{total:,}] Page {start//PAGE_SIZE + 1}...", end="", flush=True)
+
+        try:
+            data = wfs_page(dept=dept, commune=commune, start=start, count=count)
+        except Exception as e:
+            print(f"\nErreur page {start}: {e}")
+            break
+
+        features = data.get("features", [])
+        if not features:
+            break
+
+        batch = []
+        for f in features:
+            p = feature_to_parcelle(f)
+            if p:
+                batch.append(p)
+            else:
+                skipped += 1
+
+        if batch:
+            with transaction.atomic():
+                Parcelle.objects.bulk_create(batch, ignore_conflicts=True)
+            imported += len(batch)
+
+        start += len(features)
+        if len(features) < count:
+            break  # dernière page
+
+    print(f"\n\nImport terminé :")
+    print(f"  Importées : {imported:,}")
+    print(f"  Ignorées  : {skipped}")
+    print(f"  Total DB  : {Parcelle.objects.count():,}")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Télécharge les données PCI IGN")
-    parser.add_argument("--dept", default="002", help="Code département (ex: 002, 075)")
-    parser.add_argument("--output", default="data", help="Répertoire de destination")
-    parser.add_argument("--no-extract", action="store_true", help="Ne pas extraire l'archive")
+    parser = argparse.ArgumentParser(
+        description="Import parcelles cadastrales via WFS IGN",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Exemples :
+  python scripts/download_pci.py --dept 02
+  python scripts/download_pci.py --dept 02 --limit 10000
+  python scripts/download_pci.py --commune 02408 --truncate
+        """
+    )
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--dept", metavar="CODE", help="Code département (ex: 02)")
+    group.add_argument("--commune", metavar="INSEE", help="Code INSEE commune (ex: 02408)")
+    parser.add_argument("--truncate", action="store_true", help="Vide la table avant import")
+    parser.add_argument("--limit", type=int, default=None, help="Limite le nombre de parcelles")
+    # Argument legacy ignoré (conservé pour compatibilité avec ancienne doc)
+    parser.add_argument("--output", default=None, help=argparse.SUPPRESS)
     args = parser.parse_args()
 
-    dept = args.dept.zfill(3)
-    output_dir = Path(args.output)
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    url = PCI_URL_TEMPLATE.format(dept=dept)
-    archive_name = f"PARCELLAIRE-EXPRESS_D{dept}.7z"
-    archive_path = output_dir / archive_name
-
-    if archive_path.exists():
-        print(f"Archive déjà présente : {archive_path}")
-        answer = input("Re-télécharger ? [o/N] ").strip().lower()
-        if answer != "o":
-            print("Téléchargement ignoré.")
-        else:
-            download_with_progress(url, archive_path)
-    else:
-        download_with_progress(url, archive_path)
-
-    if not args.no_extract:
-        extract_dir = output_dir / f"pci_D{dept}"
-        extract_7z(archive_path, extract_dir)
-
-        shapefiles = find_shapefiles(extract_dir)
-        if shapefiles:
-            print(f"\nFichiers shapefile trouvés ({len(shapefiles)}) :")
-            for shp in shapefiles:
-                print(f"  {shp}")
-            print("\nPour importer dans PostGIS, exécutez :")
-            print(f"  python scripts/import_pci.py --shp {shapefiles[0]}")
-        else:
-            print(f"\nAucun shapefile trouvé dans {extract_dir}")
-            print("Vérifiez le contenu de l'archive.")
+    import_wfs(
+        dept=args.dept,
+        commune=args.commune,
+        truncate=args.truncate,
+        limit=args.limit,
+    )
 
 
 if __name__ == "__main__":

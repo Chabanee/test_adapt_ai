@@ -5,4 +5,4 @@ django-cors-headers==4.6.0
 psycopg2-binary==2.9.10
 python-dotenv==1.0.1
 requests==2.32.3
-gdal==3.8.4
+# GDAL est installé séparément dans le Dockerfile pour matcher la version système

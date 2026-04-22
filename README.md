@@ -57,24 +57,23 @@ Dans un autre terminal :
 docker-compose exec backend python manage.py migrate
 ```
 
-### 4. Télécharger les données PCI (Aisne – département 02)
+### 4. Importer les données PCI via WFS (Aisne – département 02)
+
+Les données sont importées directement depuis le service WFS public de la Géoplateforme IGN (aucun téléchargement de fichier requis).
 
 ```bash
-docker-compose exec backend python scripts/download_pci.py --dept 002 --output data/
+# Import complet (~999 000 parcelles, ~45 min selon connexion)
+docker-compose exec backend python scripts/download_pci.py --dept 02
+
+# Import rapide pour tester (10 000 parcelles)
+docker-compose exec backend python scripts/download_pci.py --dept 02 --limit 10000
+
+# Import d'une seule commune (ex : Laon, code INSEE 02408)
+docker-compose exec backend python scripts/download_pci.py --commune 02408
 ```
 
-Les données PCI (Parcellaire Express) sont publiées par l'IGN sous licence Ouverte Etalab 2.0.
-Taille estimée : ~150 Mo compressé, ~600 Mo extrait.
-
-### 5. Importer les données dans PostGIS
-
-```bash
-docker-compose exec backend python scripts/import_pci.py \
-    --shp data/pci_D002/PARCELLAIRE-EXPRESS_2-1__SHP_LAMB93_D002_2024-01-01/PARCELLE/PARCELLE.shp \
-    --truncate
-```
-
-> Pour un import de test rapide, ajoutez `--limit 10000`.
+> Les données PCI sont publiées par l'IGN sous licence Ouverte Etalab 2.0.
+> Source WFS : `https://data.geopf.fr/wfs/ows`
 
 ### 6. Accéder à l'application
 

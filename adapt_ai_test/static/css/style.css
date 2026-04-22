@@ -37,6 +37,20 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 14px; color: #
   margin-bottom: 8px;
 }
 
+#btn-center {
+  width: 100%;
+  padding: 7px;
+  background: #f0f4ff;
+  color: #1a56db;
+  border: 1px solid #c7d2fe;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: background .2s;
+}
+#btn-center:hover { background: #e0e7ff; }
+
 .hint { color: #888; font-size: 13px; line-height: 1.5; }
 
 /* ---- Info panel (parcelle sélectionnée) ---- */

@@ -214,6 +214,12 @@ function showLoading(visible) {
   document.getElementById("loading").classList.toggle("hidden", !visible);
 }
 
+// ---- Bouton de recentrage sur l'Aisne ----
+window.centerOnAisne = function () {
+  // Bbox de l'Aisne : on fly vers le centre à un zoom suffisant pour voir les parcelles
+  map.flyTo(MAP_CENTER, 15);
+};
+
 // ---- Déclenchement du chargement avec debounce ----
 function scheduleLoad() {
   clearTimeout(loadTimeout);

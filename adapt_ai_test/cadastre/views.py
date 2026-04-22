@@ -80,9 +80,7 @@ class ParcelleProprietaireView(APIView):
         except Parcelle.DoesNotExist:
             return Response({"error": "Parcelle non trouvée"}, status=status.HTTP_404_NOT_FOUND)
 
-        # Extrait le code INSEE depuis l'IDU (format : CCCCCSSNNNN)
-        # IDU = code_dep(2/3) + code_com(3/2) + section(2) + numéro(4)
-        code_insee = parcelle.code_com
+        code_insee = parcelle.code_insee  # propriété calculée : code_dep + code_com sur 3 chiffres
         section = parcelle.section
         numero = parcelle.numero
 

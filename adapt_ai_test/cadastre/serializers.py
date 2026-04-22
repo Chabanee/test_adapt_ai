@@ -18,4 +18,4 @@ class ParcelleListSerializer(GeoFeatureModelSerializer):
     class Meta:
         model = Parcelle
         geo_field = "geom"
-        fields = ["id", "idu", "section", "numero", "contenance"]
+        fields = ["id", "idu", "code_com", "nom_com", "section", "numero", "contenance"]

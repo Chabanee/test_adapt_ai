@@ -30,5 +30,10 @@ class Parcelle(models.Model):
         ]
         verbose_name = "Parcelle cadastrale"
 
+    @property
+    def code_insee(self) -> str:
+        """Code INSEE complet sur 5 chiffres (ex: '02478')."""
+        return self.code_dep + self.code_com.zfill(3)
+
     def __str__(self):
         return self.idu

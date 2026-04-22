@@ -81,7 +81,9 @@ function selectParcelle(feature, layer) {
   layer.setStyle(selectedStyle());
 
   const p = feature.properties;
-  currentParcelleId = p.id;
+  // DRF-GIS place l'id au niveau feature.id (pas dans properties)
+  const featureId = feature.id;
+  currentParcelleId = featureId;
 
   const infoPanel = document.getElementById("info-panel");
   infoPanel.innerHTML = `
@@ -91,7 +93,7 @@ function selectParcelle(feature, layer) {
       <tr><td>Commune</td><td>${p.nom_com || p.code_com || "—"}</td></tr>
       <tr><td>Superficie</td><td>${p.contenance ? (p.contenance / 10000).toFixed(4) + " ha" : "—"}</td></tr>
     </table>
-    <button id="btn-proprietaire" onclick="fetchProprietaire(${p.id})">
+    <button id="btn-proprietaire" onclick="fetchProprietaire(${featureId})">
       Rechercher le propriétaire (SIREN)
     </button>
   `;

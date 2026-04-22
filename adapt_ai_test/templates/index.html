@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Parcelles Cadastrales – Aisne (02)</title>
+
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'css/style.css' %}" />
+</head>
+<body>
+  <div id="app">
+    <aside id="sidebar">
+      <h1>Cadastre Aisne (02)</h1>
+
+      <div id="info-panel">
+        <p class="hint">Naviguez sur la carte et cliquez sur une parcelle pour afficher ses informations.</p>
+      </div>
+
+      <div id="proprietaire-panel" class="hidden">
+        <h2>Propriétaire</h2>
+        <div id="proprietaire-content"></div>
+      </div>
+
+      <div id="loading" class="hidden">
+        <span class="spinner"></span> Chargement…
+      </div>
+    </aside>
+
+    <div id="map"></div>
+  </div>
+
+  <script src="{% static 'js/app.js' %}"></script>
+</body>
+</html>

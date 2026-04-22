@@ -1,0 +1,35 @@
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_DB: cadastre
+      POSTGRES_USER: cadastre
+      POSTGRES_PASSWORD: cadastre
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cadastre"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: .
+    command: python manage.py runserver 0.0.0.0:8000
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgis://cadastre:cadastre@db:5432/cadastre
+      DJANGO_SECRET_KEY: "change-me-in-production"
+      DEBUG: "True"
+    volumes:
+      - .:/app
+      - ./data:/app/data
+
+volumes:
+  postgres_data:

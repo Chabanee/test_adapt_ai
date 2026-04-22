@@ -1,1 +1,9 @@
-/venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.env
+data/
+staticfiles/
+db.sqlite3
+*.7z

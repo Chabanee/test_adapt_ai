@@ -80,11 +80,9 @@ class ParcelleProprietaireView(APIView):
         except Parcelle.DoesNotExist:
             return Response({"error": "Parcelle non trouvée"}, status=status.HTTP_404_NOT_FOUND)
 
-        code_insee = parcelle.code_insee  # propriété calculée : code_dep + code_com sur 3 chiffres
-        section = parcelle.section
-        numero = parcelle.numero
-
-        siren = get_siren_from_majic(code_insee, section, numero)
+        siren = get_siren_from_majic(
+            parcelle.code_dep, parcelle.code_com, parcelle.section, parcelle.numero
+        )
 
         if not siren:
             return Response(

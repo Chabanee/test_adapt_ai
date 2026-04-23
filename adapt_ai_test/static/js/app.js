@@ -174,7 +174,13 @@ window.fetchProprietaire = function (parcelleId) {
 
 function renderProprietaire(data) {
   if (!data.siren) {
-    return `<p class="no-siren">${data.message || "Aucun SIREN disponible pour cette parcelle."}</p>`;
+    return `
+      <p class="no-siren">${data.message || "Aucun SIREN disponible."}</p>
+      <p class="hint" style="margin-top:8px;font-size:12px;">
+        Les données MAJIC (propriétaires) ne sont accessibles publiquement que pour
+        les <strong>personnes morales</strong> (entreprises, collectivités).
+        Les propriétaires personnes physiques sont protégés par la CNIL.
+      </p>`;
   }
 
   const e = data.entreprise;

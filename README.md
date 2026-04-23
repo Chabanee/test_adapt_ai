@@ -144,4 +144,4 @@ python manage.py runserver
 
 ## Contact
 
-Pour toute question : contact@adapt-ai.fr
+Pour toute question : somachabane@gmail.com

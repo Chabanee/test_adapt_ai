@@ -19,13 +19,35 @@
 
       <button id="btn-center" onclick="centerOnAisne()">📍 Centrer sur l'Aisne</button>
 
+      <!-- Infos parcelle sélectionnée -->
       <div id="info-panel">
         <p class="hint">Zoomez sur l'Aisne (zoom ≥ 14) et cliquez sur une parcelle.</p>
       </div>
 
+      <!-- Résultat recherche propriétaire -->
       <div id="proprietaire-panel" class="hidden">
         <h2>Propriétaire</h2>
         <div id="proprietaire-content"></div>
+      </div>
+
+      <!-- Séparateur -->
+      <hr class="divider" />
+
+      <!-- Recherche SIREN manuelle (Bonus étape 6) -->
+      <div id="siren-search-section">
+        <h2>Recherche SIREN</h2>
+        <p class="hint">Saisissez un numéro SIREN (9 chiffres) pour obtenir les informations de l'entreprise via l'API SIRENE.</p>
+        <div class="siren-input-row">
+          <input
+            type="text"
+            id="siren-input"
+            placeholder="Ex : 542051180"
+            maxlength="9"
+            pattern="\d{9}"
+          />
+          <button id="btn-siren-search" onclick="searchSiren()">Rechercher</button>
+        </div>
+        <div id="siren-search-result"></div>
       </div>
 
       <div id="loading" class="hidden">

@@ -224,9 +224,56 @@ function showLoading(visible) {
 
 // ---- Bouton de recentrage sur l'Aisne ----
 window.centerOnAisne = function () {
-  // Bbox de l'Aisne : on fly vers le centre à un zoom suffisant pour voir les parcelles
   map.flyTo(MAP_CENTER, 15);
 };
+
+// ---- Recherche SIREN manuelle (Bonus étape 6) ----
+window.searchSiren = function () {
+  const input = document.getElementById("siren-input");
+  const btn = document.getElementById("btn-siren-search");
+  const result = document.getElementById("siren-search-result");
+  const siren = input.value.trim().replace(/\s/g, "");
+
+  if (!/^\d{9}$/.test(siren)) {
+    result.innerHTML = `<p class="error-msg">⚠ Saisissez exactement 9 chiffres.</p>`;
+    return;
+  }
+
+  btn.disabled = true;
+  result.innerHTML = `<div style="display:flex;align-items:center;gap:8px;color:#666"><span class="spinner"></span> Recherche en cours…</div>`;
+
+  fetch(`${API_BASE}/siren/${siren}/`)
+    .then((r) => r.json().then((data) => ({ ok: r.ok, data })))
+    .then(({ ok, data }) => {
+      btn.disabled = false;
+      if (!ok || !data.entreprise) {
+        result.innerHTML = `<p class="no-siren">${data.message || "Entreprise introuvable pour ce SIREN."}</p>`;
+        return;
+      }
+      const e = data.entreprise;
+      let html = `<div class="prop-item"><div class="prop-label">SIREN</div>
+        <div class="prop-value"><span class="siren-badge">${data.siren}</span></div></div>`;
+      if (e.nom)               html += propRow("Raison sociale", e.nom);
+      if (e.siret_siege)       html += propRow("SIRET siège", e.siret_siege);
+      if (e.activite_principale) html += propRow("Activité (NAF)", e.activite_principale);
+      if (e.adresse)           html += propRow("Adresse", e.adresse);
+      if (e.etat) {
+        const actif = e.etat === "A";
+        html += propRow("État", `<span style="color:${actif ? "#16a34a" : "#dc2626"}">${actif ? "Actif" : "Fermé"}</span>`);
+      }
+      result.innerHTML = `<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px">${html}</div>`;
+    })
+    .catch((err) => {
+      btn.disabled = false;
+      result.innerHTML = `<p class="error-msg">Erreur réseau : ${err.message}</p>`;
+    });
+};
+
+// Déclenche la recherche avec la touche Entrée
+document.addEventListener("DOMContentLoaded", () => {
+  const input = document.getElementById("siren-input");
+  if (input) input.addEventListener("keydown", (e) => { if (e.key === "Enter") window.searchSiren(); });
+});
 
 // ---- Déclenchement du chargement avec debounce ----
 function scheduleLoad() {

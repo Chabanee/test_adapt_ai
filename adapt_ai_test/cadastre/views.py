@@ -107,3 +107,28 @@ class ParcelleProprietaireView(APIView):
                 "entreprise": entreprise,
             }
         )
+
+
+class SirenSearchView(APIView):
+    """
+    GET /api/siren/<siren>/
+    Recherche directe d'une entreprise par son numéro SIREN via l'API SIRENE.
+    Permet de démontrer le bonus (étape 6) indépendamment des données MAJIC.
+    """
+
+    def get(self, request, siren):
+        siren_clean = str(siren).strip()
+        if not siren_clean.isdigit() or len(siren_clean) != 9:
+            return Response(
+                {"error": "SIREN invalide. Un SIREN est composé de 9 chiffres."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        entreprise = get_entreprise_by_siren(siren_clean)
+        if not entreprise:
+            return Response(
+                {"siren": siren_clean, "entreprise": None, "message": "Entreprise non trouvée."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        return Response({"siren": siren_clean, "entreprise": entreprise})

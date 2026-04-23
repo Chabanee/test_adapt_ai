@@ -110,6 +110,50 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 14px; color: #
 
 .hidden { display: none !important; }
 
+/* ---- Séparateur ---- */
+.divider { border: none; border-top: 1px solid #e5e7eb; margin: 4px 0; }
+
+/* ---- Recherche SIREN ---- */
+#siren-search-section h2 { font-size: 14px; font-weight: 600; color: #555; margin-bottom: 6px; }
+
+.siren-input-row {
+  display: flex;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+.siren-input-row input {
+  flex: 1;
+  padding: 7px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: monospace;
+  letter-spacing: .05em;
+  outline: none;
+  transition: border-color .2s;
+}
+.siren-input-row input:focus { border-color: #1a56db; }
+
+#btn-siren-search {
+  padding: 7px 12px;
+  background: #1a56db;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background .2s;
+}
+#btn-siren-search:hover { background: #1e40af; }
+#btn-siren-search:disabled { background: #93c5fd; cursor: not-allowed; }
+
+#siren-search-result { margin-top: 4px; }
+
+.error-msg { color: #dc2626; font-size: 13px; }
+
 /* ---- Map ---- */
 #map { flex: 1; }
 

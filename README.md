@@ -77,7 +77,7 @@ docker-compose exec backend python scripts/download_pci.py --commune 02408
 
 ### 6. Accéder à l'application
 
-Ouvrez http://localhost:8000 dans votre navigateur.
+Ouvrez http://localhost:8000 ou 8001 dans votre navigateur.
 
 Zoomez sur le département de l'Aisne (zoom ≥ 14) pour voir les parcelles.
 Cliquez sur une parcelle pour afficher ses informations, puis sur **"Rechercher le propriétaire"**.
